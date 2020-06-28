@@ -371,6 +371,16 @@ static av_cold int decode_init(WMAProDecodeCtx *s, AVCodecContext *avctx, int nu
     int log2_max_num_subframes;
     int num_possible_block_sizes;
 
+    if (avctx->codec_id == AV_CODEC_ID_XMA1 ||
+        avctx->codec_id == AV_CODEC_ID_XMA2 ||
+        avctx->codec_id == AV_CODEC_ID_XMAFRAMES)
+        avctx->block_align = 2048;
+
+    if (!avctx->block_align) {
+        av_log(avctx, AV_LOG_ERROR, "block_align is not set\n");
+        return AVERROR(EINVAL);
+    }
+
     s->avctx = avctx;
 
     init_put_bits(&s->pb, s->frame_data, MAX_FRAMESIZE);
@@ -411,6 +421,11 @@ static av_cold int decode_init(WMAProDecodeCtx *s, AVCodecContext *avctx, int nu
             avpriv_request_sample(avctx, "bits per sample is %d", s->bits_per_sample);
             return AVERROR_PATCHWELCOME;
         }
+    } else if (avctx->codec_id == AV_CODEC_ID_XMAFRAMES) {
+        s->decode_flags    = 0x10d6;
+        s->bits_per_sample = 16;
+        channel_mask       = 0;
+        s->nb_channels     = avctx->ch_layout.nb_channels;
     } else {
         avpriv_request_sample(avctx, "Unknown extradata size");
         return AVERROR_PATCHWELCOME;
@@ -2096,6 +2111,80 @@ static av_cold void xma_flush(AVCodecContext *avctx)
     s->flushed = 0;
 }
 
+static av_cold int xmaframes_decode_init(AVCodecContext* avctx)
+{
+    WMAProDecodeCtx *s = avctx->priv_data;
+
+    return decode_init(s, avctx, 0);
+}
+
+static av_cold int xmaframes_decode_end(AVCodecContext* avctx)
+{
+    WMAProDecodeCtx *s = avctx->priv_data;
+
+    decode_end(s);
+
+    return 0;
+}
+
+
+/**
+ *@brief Decode a single WMA frame. Packet parsing is out of this decoders scope.
+ *@param avctx codec context
+ *@param data the output buffer
+ *@param avpkt input packet. the data is preceeded by one byte that contains bit padding information
+ *@return number of bytes that were read from the input buffer
+ */
+static int xmaframes_decode_packet(AVCodecContext *avctx, AVFrame *frame,
+                                   int *got_frame_ptr, AVPacket *avpkt)
+{
+    WMAProDecodeCtx *s = avctx->priv_data;
+    GetBitContext* gb = &s->gb;
+    int ret, xma_frame_len = 0;
+    uint8_t padding_start, padding_end = 0;
+
+    if (avpkt->size < 3) {
+      av_log(avctx, AV_LOG_ERROR, "XMA Frame is to small, %d bytes\n", avpkt->size);
+      return AVERROR_INVALIDDATA;
+    }
+
+    s->buf_bit_size = avpkt->size << 3;
+    init_get_bits(gb, avpkt->data, s->buf_bit_size);
+
+    /** get padding sizes from first byte */
+    padding_start = get_bits(gb, 3);
+    padding_end = get_bits(gb, 3);
+    skip_bits(gb, 2);
+
+    /** move bit reader to start of xma frame */
+    skip_bits(gb, padding_start);
+    
+
+    /** validate buffer size */
+    xma_frame_len = show_bits(gb, s->log2_frame_size);
+    if (s->buf_bit_size != 
+        8 + padding_start + xma_frame_len + padding_end) {
+      av_log(avctx, AV_LOG_ERROR, "XMA Frame sizing incorrent: \n"
+             "   s->buf_bit_size != (8 + padding_start + xma_frame_len + padding_end)\n"
+             "=> %d != 8 + (%d + %d + %d)\n",
+             s->buf_bit_size, padding_start, xma_frame_len, padding_end);
+      return AVERROR_INVALIDDATA;
+    }
+
+    save_bits(s, gb, xma_frame_len, 0);
+
+    /** get output buffer */
+    frame->nb_samples = s->samples_per_frame;
+    if ((ret = ff_get_buffer(avctx, frame, 0)) < 0) {
+        s->packet_loss = 1;
+        return 0;
+    }
+
+    decode_frame(s, frame, got_frame_ptr);
+
+    return avpkt->size;
+}
+
 /**
  *@brief wmapro decoder
  */
@@ -2139,4 +2228,18 @@ const FFCodec ff_xma2_decoder = {
     .flush          = xma_flush,
     .p.capabilities = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_DELAY,
     .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP,
+};
+
+const FFCodec ff_xmaframes_decoder = {
+    .p.name         = "xmaframes",
+    CODEC_LONG_NAME("Xbox Media Audio raw frames"),
+    .p.type         = AVMEDIA_TYPE_AUDIO,
+    .p.id           = AV_CODEC_ID_XMAFRAMES,
+    .priv_data_size = sizeof(WMAProDecodeCtx),
+    .init           = xmaframes_decode_init,
+    .close          = xmaframes_decode_end,
+    FF_CODEC_DECODE_CB(xmaframes_decode_packet),
+    .p.capabilities = AV_CODEC_CAP_DR1,
+    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP,
+    CODEC_SAMPLEFMTS(AV_SAMPLE_FMT_FLTP),
 };

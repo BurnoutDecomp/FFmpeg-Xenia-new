@@ -11,7 +11,7 @@ function ffmpeg_common()
   })
 
   local ffmpeg_root = ".."
-  includedirs({ 
+  includedirs({
     ffmpeg_root,
   })
   filter({"platforms:Windows", "configurations:Debug or configurations:Checked"})

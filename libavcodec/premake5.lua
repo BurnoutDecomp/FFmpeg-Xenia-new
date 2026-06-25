@@ -24,26 +24,27 @@ project("libavcodec")
     "adts_parser.h",
     "avcodec.h",
     "avdct.h",
-    "avfft.h",
     "bsf.h",
     "codec.h",
     "codec_desc.h",
     "codec_id.h",
     "codec_par.h",
     "d3d11va.h",
+    "defs.h",
     "dirac.h",
     "dv_profile.h",
     "dxva2.h",
+    "exif.h",
     "jni.h",
     "mediacodec.h",
     "packet.h",
     "qsv.h",
-    "vaapi.h",
+    "smpte_436m.h",
     "vdpau.h",
     "version.h",
+    "version_major.h",
     "videotoolbox.h",
     "vorbis_parser.h",
-    "xvmc.h",
   })
   --   OBJS:
   files({
@@ -52,10 +53,8 @@ project("libavcodec")
     "allcodecs.c",
     "avcodec.c",
     "avdct.c",
-    "avpacket.c",
-    "avpicture.c",
+    "packet.c",
     "bitstream.c",
-    "bitstream_filter.c",
     "bitstream_filters.c",
     "bsf.c",
     "codec_desc.c",
@@ -65,6 +64,8 @@ project("libavcodec")
     "dirac.c",
     "dv_profile.c",
     "encode.c",
+    "exif.c",
+    "get_buffer.c",
     "imgconvert.c",
     "jni.c",
     "mathtables.c",
@@ -76,7 +77,11 @@ project("libavcodec")
     "profiles.c",
     "qsv_api.c",
     "raw.c",
+    "threadprogress.c",
+    "tiff_common.c",
     "utils.c",
+    "version.c",
+    "vlc.c",
     "vorbis_parser.c",
     "xiph.c",
     "faandct.c",
@@ -87,21 +92,14 @@ project("libavcodec")
     "idctdsp.c",
     "simple_idct.c",
     "jrevdct.c",
-    "mdct_float.c",
-    "mdct_fixed_32.c",
     "sinewin.c",
     "wma_freqs.c",
     "wmaprodec.c",
     "wma.c",
     "wma_common.c",
-    "null_bsf.c",
     "pthread.c",
     "pthread_slice.c",
     "pthread_frame.c",
-    "avfft.c",
-    "fft_float.c",
-    "fft_fixed_32.c",
-    "fft_init_table.c",
   })
   filter({"platforms:Windows"})
   files({
@@ -113,16 +111,16 @@ project("libavcodec")
   --   OBJS:
   filter({"platforms:Android-ARM64"})
   files({
-    "aarch64/fft_init_aarch64.c",
+    "aarch64/fdctdsp_init_aarch64.c",
     "aarch64/idctdsp_init_aarch64.c",
   })
   filter({})
   --   NEON-OBJS:
   filter({"platforms:Android-ARM64"})
   files({
-    "aarch64/fft_neon.S",
+    "aarch64/fdctdsp_neon.S",
+    "aarch64/idctdsp_neon.S",
     "aarch64/simple_idct_neon.S",
-    "aarch64/mdct_neon.S",
   })
   filter({})
 
@@ -132,13 +130,6 @@ project("libavcodec")
   files({
     "x86/constants.c",
     "x86/fdctdsp_init.c",
-    "x86/fft_init.c",
-    "x86/idctdsp_init.c",
-  })
-  filter({})
-  --   MMX-OBJS:
-  filter({"platforms:Android-x86_64 or platforms:Linux or platforms:Windows"})
-  files({
     "x86/fdct.c",
   })
   filter({})

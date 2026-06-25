@@ -2158,11 +2158,11 @@ static int xmaframes_decode_packet(AVCodecContext *avctx, AVFrame *frame,
 
     /** move bit reader to start of xma frame */
     skip_bits(gb, padding_start);
-    
+
 
     /** validate buffer size */
     xma_frame_len = show_bits(gb, s->log2_frame_size);
-    if (s->buf_bit_size != 
+    if (s->buf_bit_size !=
         8 + padding_start + xma_frame_len + padding_end) {
       av_log(avctx, AV_LOG_ERROR, "XMA Frame sizing incorrent: \n"
              "   s->buf_bit_size != (8 + padding_start + xma_frame_len + padding_end)\n"

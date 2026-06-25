@@ -10,7 +10,7 @@
 #define OS_NAME win32
 #define av_restrict restrict
 #define EXTERN_PREFIX ""
-#define EXTERN_ASM 
+#define EXTERN_ASM
 #define BUILDSUF ""
 #define SLIBSUF ".dll"
 #define HAVE_MMX2 HAVE_MMXEXT
